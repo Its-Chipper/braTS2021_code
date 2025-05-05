@@ -42,6 +42,8 @@ def main_folder_loop():
             file_data = file_reader(root + '/' + file)
             file_data = torchio.ScalarImage(root + '/' + file)
             processed_data = preprocessing(file_data)
+
+            # show images
             fig, axes = plt.subplots(1, 2, figsize=(20, 5))
 
             slice_idx = 65
