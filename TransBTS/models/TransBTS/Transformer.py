@@ -1,7 +1,6 @@
 import torch.nn as nn
 from models.TransBTS.IntmdSequential import IntermediateSequential
 
-
 class SelfAttention(nn.Module):
     def __init__(
         self, dim, heads=8, qkv_bias=False, qk_scale=None, dropout_rate=0.0
@@ -68,6 +67,28 @@ class PreNormDrop(nn.Module):
     def forward(self, x):
         return self.dropout(self.fn(self.norm(x)))
 
+class Squeeze(nn.Module):
+    def __init__(self, dim, stride, fn):
+        super().__init__()
+        self.pool = nn.AvgPool2d(
+            dim,
+            stride
+        )
+        self.fn = fn
+
+    def forward(self, x):
+        return self.pool(self.fn(x))
+
+class Excitation(nn.Module):
+    def __init__(self, fn):
+        super().__init__()
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        self.fn = fn
+
+    def forward(self, x):
+        return self.fn(self.relu(self.sigmoid(x)))
+
 
 class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout_rate):
@@ -108,6 +129,12 @@ class TransformerModel(nn.Module):
                     ),
                     Residual(
                         PreNorm(dim, FeedForward(dim, mlp_dim, dropout_rate))
+                    ),
+                    Residual(
+                        Squeeze(dim, 3, SelfAttention(dim, heads=heads, dropout_rate=attn_dropout_rate))
+                    ),
+                    Residual(
+                        Excitation(SelfAttention(dim, heads=heads, dropout_rate=attn_dropout_rate))
                     ),
                 ]
             )

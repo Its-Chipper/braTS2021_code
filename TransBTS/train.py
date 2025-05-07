@@ -95,7 +95,7 @@ parser.add_argument('--accum_iter', default=4, type=int)
 
 parser.add_argument('--start_epoch', default=0, type=int)
 
-parser.add_argument('--end_epoch', default=100, type=int)
+parser.add_argument('--end_epoch', default=1, type=int)
 
 parser.add_argument('--save_freq', default=5, type=int)
 
@@ -154,13 +154,6 @@ def main_worker():
     train_list = os.path.join(args.root, args.train_dir, args.train_file)
     train_root = os.path.join(args.root, args.train_dir)
     valid_root = os.path.join(args.root, args.valid_dir)
-
-    print(args)
-    print(train_list)
-    print(train_root)
-    print(valid_root)
-
-    return
 
     valid_list = os.path.join(args.root, args.valid_dir, args.valid_file)
     train_set = BraTS(train_list, train_root, args.mode)
