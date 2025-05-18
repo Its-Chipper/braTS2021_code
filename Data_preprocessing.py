@@ -7,6 +7,7 @@ import numpy as np
 import nibabel as nib
 
 base_folder_root = "D:/Research/Spring_25/archive/Data/"
+processed_folder_root = "D:/Research/Spring_25/archive/raw_data/"
 
 file_extensions = ['.nii.gz']
 
@@ -37,28 +38,38 @@ transform = torchio.Compose([
 
 
 def main_folder_loop():
+    all_files_array = []
     for (root,dirs,files) in os.walk(base_folder_root, topdown=True):
-        for file in files:
-            file_data = file_reader(root + '/' + file)
-            file_data = torchio.ScalarImage(root + '/' + file)
-            processed_data = preprocessing(file_data)
+        if (len(files) == 5):
+            base_file = root + '/' + files[0].replace('flair.nii.gz', '')
 
-            # show images
-            fig, axes = plt.subplots(1, 2, figsize=(20, 5))
+            label = np.array(nib.load(base_file + 'seg.nii.gz').get_fdata()).astype('uint8')
 
-            slice_idx = 65
+            images = np.stack([
+                np.array(nib.load(base_file + modal + '.nii.gz').get_fdata())
+                for modal in train_file_suffixes], -1)
 
-            imgs = [
-                (file_data.data.numpy()[0, :, :, slice_idx], "Original FLAIR MRI"),
-                (processed_data.data.numpy()[0, :, :, slice_idx], "Transformed Image")
-            ]
+            output = base_file.replace(base_folder_root, processed_folder_root) + 'data_f32b0.pkl'
+            os.makedirs(os.path.dirname(output), exist_ok=True)
+            with open(output, 'wb') as f:
+                print(output)
+                print(images.shape, type(images), label.shape, type(label)) #(240, 240, 155, 4) <class 'numpy.ndarray'> (240, 240, 155) <class 'numpy.ndarray'>
+                pickle.dump((images, label), f)
+            print(len(all_files_array))
+            all_files_array.append(output.replace(processed_folder_root, ''))
 
-            for i, (img, title) in enumerate(imgs):
-                axes[i].imshow(img, cmap="gray")
-                axes[i].set_title(title)
-                axes[i].axis("off")  
-            plt.show()
-            break
+    np.random.shuffle(all_files_array)
+    train, validate, test = np.split(all_files_array, [int(len(all_files_array)*0.8), int(len(all_files_array)*0.9)])
+    with open(processed_folder_root + 'train.txt', mode='wt', encoding='utf-8') as myfile:
+        myfile.write('\n'.join(train))
+    with open(processed_folder_root + 'validate.txt', mode='wt', encoding='utf-8') as myfile:
+        myfile.write('\n'.join(validate))
+    with open(processed_folder_root + 'test.txt', mode='wt', encoding='utf-8') as myfile:
+        myfile.write('\n'.join(test))
+    print(len(all_files_array))
+    print(len(train))
+    print(len(validate))
+    print(len(test))
 
 def file_reader(file_root):
     if not os.path.exists(file_root):

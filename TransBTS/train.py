@@ -39,17 +39,17 @@ parser.add_argument('--description',
 
 
 # DataSet Information
-parser.add_argument('--root', default='./', type=str)
+parser.add_argument('--root', default='D:/Research/Spring_25/archive', type=str)
 
-parser.add_argument('--train_dir', default='train', type=str)
+parser.add_argument('--train_dir', default='processed_data', type=str)
 
-parser.add_argument('--valid_dir', default='val', type=str)
+parser.add_argument('--valid_dir', default='processed_data', type=str)
 
 parser.add_argument('--mode', default='train', type=str)
 
-parser.add_argument('--train_file', default='train.txt', type=str)
+parser.add_argument('--train_file', default='train_single.txt', type=str)
 
-parser.add_argument('--valid_file', default='val.txt', type=str)
+parser.add_argument('--valid_file', default='validate_single.txt', type=str)
 
 parser.add_argument('--dataset', default='brats', type=str)
 
@@ -57,11 +57,11 @@ parser.add_argument('--model_name', default='TransBTS', type=str)
 
 parser.add_argument('--input_C', default=4, type=int)
 
-parser.add_argument('--input_H', default=240, type=int)
+parser.add_argument('--input_H', default=214, type=int)
 
-parser.add_argument('--input_W', default=240, type=int)
+parser.add_argument('--input_W', default=214, type=int)
 
-parser.add_argument('--input_D', default=160, type=int)
+parser.add_argument('--input_D', default=134, type=int)
 
 parser.add_argument('--crop_H', default=128, type=int)
 
@@ -84,7 +84,7 @@ parser.add_argument('--num_class', default=4, type=int)
 
 parser.add_argument('--seed', default=1000, type=int)
 
-parser.add_argument('--no_cuda', default=False, type=bool)
+parser.add_argument('--no_cuda', default=True, type=bool)
 
 parser.add_argument('--gpu', default='0', type=str)
 
@@ -95,7 +95,7 @@ parser.add_argument('--accum_iter', default=4, type=int)
 
 parser.add_argument('--start_epoch', default=0, type=int)
 
-parser.add_argument('--end_epoch', default=1, type=int)
+parser.add_argument('--end_epoch', default=5, type=int)
 
 parser.add_argument('--save_freq', default=5, type=int)
 
@@ -119,7 +119,7 @@ def main_worker():
     logging.info('{}'.format(args.description))
 
     torch.manual_seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
+    #torch.cuda.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
 
@@ -181,8 +181,8 @@ def main_worker():
             adjust_learning_rate(optimizer, epoch, args.end_epoch, args.lr)
 
             x, target = data
-            x = x.cuda(0, non_blocking=True)
-            target = target.cuda(0, non_blocking=True)
+            #x = x.cuda(0, non_blocking=True)
+            #target = target.cuda(0, non_blocking=True)
 
             output = model(x)
 
@@ -210,7 +210,7 @@ def main_worker():
                 writer.add_image('Ground_Truth', target[0, ...].unsqueeze(0).cpu().detach().numpy()[:, :, slice_id], i, dataformats='CHW')
                 writer.add_image('Prediction', pred_mask[0, ...].unsqueeze(0).cpu().detach().numpy()[:, :, slice_id], i, dataformats='CHW')
 
-            torch.cuda.empty_cache()
+            #torch.cuda.empty_cache()
 
         with torch.no_grad():
             model.eval()
@@ -218,8 +218,8 @@ def main_worker():
             metrics_dice = []
             for i, data in enumerate(valid_loader):
                 x, target = data
-                x = x.cuda(args.local_rank, non_blocking=True)
-                target = target.cuda(0, non_blocking=True)
+                #x = x.cuda(args.local_rank, non_blocking=True)
+                #target = target.cuda(0, non_blocking=True)
 
                 output = model(x)
                 loss, _, _, _ = criterion(output, target)
@@ -258,7 +258,7 @@ def main_worker():
         writer.add_scalar('train HD loss:', np.mean(train_hd_history), epoch)
         writer.add_scalar('train HD loss:', np.mean(train_dice_history), epoch)
 
-        torch.cuda.empty_cache()
+       # torch.cuda.empty_cache()
 
         epoch_time_minute = (end_epoch-start_epoch)/60
         remaining_time_hour = (args.end_epoch-epoch-1)*epoch_time_minute/60

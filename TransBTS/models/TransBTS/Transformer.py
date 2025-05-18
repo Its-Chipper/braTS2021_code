@@ -1,5 +1,70 @@
 import torch.nn as nn
+from torch import ones_like
 from models.TransBTS.IntmdSequential import IntermediateSequential
+from inspect import isfunction
+
+def get_activation_layer(activation):
+    """
+    Create activation layer from string/function.
+
+    Parameters:
+    ----------
+    activation : function, or str, or nn.Module
+        Activation function or name of activation function.
+
+    Returns
+    -------
+    nn.Module
+        Activation layer.
+    """
+    assert (activation is not None)
+    if isfunction(activation):
+        return activation()
+    elif isinstance(activation, str):
+        if activation == "relu":
+            return nn.ReLU(inplace=True)
+        elif activation == "relu6":
+            return nn.ReLU6(inplace=True)
+        elif activation == "swish":
+            return Swish()
+        elif activation == "hswish":
+            return HSwish(inplace=True)
+        else:
+            raise NotImplementedError()
+    else:
+        assert (isinstance(activation, nn.Module))
+        return activation
+
+class Swish(nn.Module):
+    """
+    Swish activation function from 'Searching for Activation Functions,' https://arxiv.org/abs/1710.05941.
+    """
+    def forward(self, x):
+        return x * nn.sigmoid(x)
+
+class HSwish(nn.Module):
+    """
+    H-Swish activation function from 'Searching for MobileNetV3,' https://arxiv.org/abs/1905.02244.
+
+    Parameters:
+    ----------
+    inplace : bool
+        Whether to use inplace version of the module.
+    """
+    def __init__(self, inplace=False):
+        super(HSwish, self).__init__()
+        self.inplace = inplace
+
+    def forward(self, x):
+        return x * nn.functional.relu6(x + 3.0, inplace=self.inplace) / 6.0
+
+class HSigmoid(nn.Module):
+    """
+    Approximated sigmoid function, so-called hard-version of sigmoid from 'Searching for MobileNetV3,'
+    https://arxiv.org/abs/1905.02244.
+    """
+    def forward(self, x):
+        return nn.functional.relu6(x + 3.0, inplace=True) / 6.0
 
 class SelfAttention(nn.Module):
     def __init__(
@@ -67,27 +132,46 @@ class PreNormDrop(nn.Module):
     def forward(self, x):
         return self.dropout(self.fn(self.norm(x)))
 
-class Squeeze(nn.Module):
-    def __init__(self, dim, stride, fn):
-        super().__init__()
-        self.pool = nn.AvgPool2d(
-            dim,
-            stride
-        )
-        self.fn = fn
+#base on code from https://github.com/osmr/imgclsmob/blob/68335927ba27f2356093b985bada0bc3989836b1/pytorch/pytorchcv/models/common.py#L731
+#paper https://arxiv.org/abs/1709.01507v4
+class SEBlock(nn.Module):
+    def __init__(self,
+                 channels,
+                 reduction=16,
+                 approx_sigmoid=False,
+                 activation=(lambda: nn.ReLU(inplace=True))):
+        super(SEBlock, self).__init__()
+
+        mid_channels = channels // reduction
+        if (mid_channels == 0):
+            mid_channels = 1
+
+        self.pool = nn.AdaptiveAvgPool2d(output_size=1)
+        self.conv1 = nn.Conv2d(
+            in_channels=channels,
+            out_channels=mid_channels,
+            kernel_size=1,
+            stride=1,
+            groups=1,
+            bias=True)
+        self.activ = get_activation_layer(activation)
+        self.conv2 = nn.Conv2d(
+            in_channels=mid_channels,
+            out_channels=channels,
+            kernel_size=1,
+            stride=1,
+            groups=1,
+            bias=True)
+        self.sigmoid = HSigmoid() if approx_sigmoid else nn.Sigmoid()
 
     def forward(self, x):
-        return self.pool(self.fn(x))
-
-class Excitation(nn.Module):
-    def __init__(self, fn):
-        super().__init__()
-        self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
-        self.fn = fn
-
-    def forward(self, x):
-        return self.fn(self.relu(self.sigmoid(x)))
+        w = self.pool(x)
+        w = self.conv1(w)
+        w = self.activ(w)
+        w = self.conv2(w)
+        w = self.sigmoid(w)
+        x = x * w
+        return x
 
 
 class FeedForward(nn.Module):
@@ -131,11 +215,8 @@ class TransformerModel(nn.Module):
                         PreNorm(dim, FeedForward(dim, mlp_dim, dropout_rate))
                     ),
                     Residual(
-                        Squeeze(dim, 3, SelfAttention(dim, heads=heads, dropout_rate=attn_dropout_rate))
-                    ),
-                    Residual(
-                        Excitation(SelfAttention(dim, heads=heads, dropout_rate=attn_dropout_rate))
-                    ),
+                        SEBlock(1)
+                    )
                 ]
             )
             # dim = dim / 2

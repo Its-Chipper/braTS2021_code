@@ -138,7 +138,7 @@ class BraTS(Dataset):
                 line = line.strip()
                 name = line.split('/')[-1]
                 names.append(name)
-                path = os.path.join(root, line, name + '_')
+                path = os.path.join(root, line)
                 paths.append(path)
                 self.lines.append(line)
         self.mode = mode
@@ -148,17 +148,17 @@ class BraTS(Dataset):
     def __getitem__(self, item):
         path = self.paths[item]
         if self.mode == 'train':
-            image, label = pkload(path + 'data_f32b0.pkl')
+            image, label = pkload(path)
             sample = {'image': image, 'label': label}
             sample = transform(sample)
             return sample['image'], sample['label']
         elif self.mode == 'valid':
-            image, label = pkload(path + 'data_f32b0.pkl')
+            image, label = pkload(path)
             sample = {'image': image, 'label': label}
             sample = transform_valid(sample)
             return sample['image'], sample['label']
         else:
-            image = pkload(path + 'data_f32b0.pkl')
+            image = pkload(path)
             image = np.pad(image, ((0, 0), (0, 0), (0, 5), (0, 0)), mode='constant')
             image = np.ascontiguousarray(image.transpose(3, 0, 1, 2))
             image = torch.from_numpy(image).float()
