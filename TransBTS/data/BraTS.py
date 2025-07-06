@@ -1,11 +1,13 @@
 import os
 import torch
+import torchio
 from torch.utils.data import Dataset
 import random
 import numpy as np
 from torchvision.transforms import transforms
 import pickle
 from scipy import ndimage
+from axial_attention import AxialAttention
 
 
 def pkload(fname):
@@ -106,13 +108,32 @@ class ToTensor(object):
 
 
 def transform(sample):
-    trans = transforms.Compose([
-        Pad(),
-        Random_rotate(),  # time-consuming
-        Random_Crop(),
-        Random_Flip(),
-        Random_intencity_shift(),
-        ToTensor()
+    trans = torchio.Compose([
+        torchio.RandomFlip(axes=(0,), p=1),
+        torchio.RandomFlip(axes=(1,), p=0.5),
+        torchio.CropOrPad((160, 160, 100)),
+        torchio.Resample(0.75),
+        torchio.OneOf({
+            torchio.RandomElasticDeformation(): 0.6,
+            torchio.RandomAffine(): 0.4
+        }),
+        torchio.OneOf({
+            torchio.RandomBlur(): 0.6,
+            torchio.Lambda(lambda x: x): 0.4
+        }),
+        torchio.OneOf({
+            torchio.RandomNoise(mean=128, std=10): 0.5,
+            torchio.RescaleIntensity(out_min_max=(0, 1)): 0.5
+        }),
+        torchio.ZNormalization(),
+        AxialAttention(
+            dim = 4,
+            dim_index = -1,
+            dim_heads = 32,
+            heads = 1,
+            num_dimensions = 2,
+            sum_axial_out = True
+        )
     ])
 
     return trans(sample)

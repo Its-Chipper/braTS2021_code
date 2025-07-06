@@ -41,9 +41,9 @@ parser.add_argument('--description',
 # DataSet Information
 parser.add_argument('--root', default='D:/Research/Spring_25/archive', type=str)
 
-parser.add_argument('--train_dir', default='processed_data', type=str)
+parser.add_argument('--train_dir', default='raw_data', type=str)
 
-parser.add_argument('--valid_dir', default='processed_data', type=str)
+parser.add_argument('--valid_dir', default='raw_data', type=str)
 
 parser.add_argument('--mode', default='train', type=str)
 

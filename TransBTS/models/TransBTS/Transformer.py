@@ -1,6 +1,6 @@
 import torch.nn as nn
-from torch import ones_like
 from models.TransBTS.IntmdSequential import IntermediateSequential
+from models.TransBTS.Swin_Transformers import SwinTransformer
 from inspect import isfunction
 
 def get_activation_layer(activation):
@@ -147,13 +147,7 @@ class SEBlock(nn.Module):
             mid_channels = 1
 
         self.pool = nn.AdaptiveAvgPool2d(output_size=1)
-        self.conv1 = nn.Conv2d(
-            in_channels=channels,
-            out_channels=mid_channels,
-            kernel_size=1,
-            stride=1,
-            groups=1,
-            bias=True)
+        self.conv1 = SwinTransformer(img_size=(4096,512), window_size=8, in_chans=1)
         self.activ = get_activation_layer(activation)
         self.conv2 = nn.Conv2d(
             in_channels=mid_channels,
@@ -166,7 +160,7 @@ class SEBlock(nn.Module):
 
     def forward(self, x):
         w = self.pool(x)
-        w = self.conv1(w)
+        w = self.conv1(x)
         w = self.activ(w)
         w = self.conv2(w)
         w = self.sigmoid(w)
