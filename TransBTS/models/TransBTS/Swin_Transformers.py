@@ -559,17 +559,24 @@ class SwinTransformer(nn.Module):
         return {'relative_position_bias_table'}
 
     def forward_features(self, x):
+        print(x.shape)
         x = self.patch_embed(x)
+        print(x.shape)
         if self.ape:
             x = x + self.absolute_pos_embed
         x = self.pos_drop(x)
+        print(x.shape)
 
         for layer in self.layers:
             x = layer(x)
 
+        print(x.shape)
         x = self.norm(x)  # B L C
+        print(x.shape)
         x = self.avgpool(x.transpose(1, 2))  # B C 1
+        print(x.shape)
         x = torch.flatten(x, 1)
+        print(x.shape)
         return x
 
     def forward(self, x):

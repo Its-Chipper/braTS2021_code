@@ -147,7 +147,7 @@ class SEBlock(nn.Module):
             mid_channels = 1
 
         self.pool = nn.AdaptiveAvgPool2d(output_size=1)
-        self.conv1 = SwinTransformer(img_size=(4096,512), window_size=8, in_chans=1)
+        self.conv1 = SwinTransformer(img_size=(4096,512), window_size=8, patch_size=4, in_chans=1, embed_dim=128, patch_norm=False)
         self.activ = get_activation_layer(activation)
         self.conv2 = nn.Conv2d(
             in_channels=mid_channels,
@@ -159,7 +159,7 @@ class SEBlock(nn.Module):
         self.sigmoid = HSigmoid() if approx_sigmoid else nn.Sigmoid()
 
     def forward(self, x):
-        w = self.pool(x)
+        #w = self.pool(x)
         w = self.conv1(x)
         w = self.activ(w)
         w = self.conv2(w)
